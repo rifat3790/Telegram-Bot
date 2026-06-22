@@ -604,13 +604,52 @@ async def check_new_issues(context: ContextTypes.DEFAULT_TYPE):
     if new_notified:
         save_notified(notified)
 
+async def add_issue(update, context):
+    if not context.args:
+        await update.message.reply_text("Please provide the client name. Example: /addissue amonebln")
+        return
+    client_name = " ".join(context.args)
+    url = "https://script.google.com/macros/s/AKfycbzGVBIT3jAHe8ZlFe4yv-aqpIOjYdUE6wyW4x0wWP1jrG9uE5NVub0wcT8uCAAME759/exec"
+    payload = {"action": "add", "clientName": client_name}
+    data = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
+    try:
+        response = urllib.request.urlopen(req)
+        result = response.read().decode('utf-8')
+        if "Success" in result:
+            await update.message.reply_text(f"✅ Successfully added issue for {client_name}.")
+        else:
+            await update.message.reply_text(f"❌ Failed: {result}")
+    except Exception as e:
+        await update.message.reply_text(f"Error adding issue: {e}")
+
+async def remove_issue(update, context):
+    if not context.args:
+        await update.message.reply_text("Please provide the client name to remove. Example: /removeissue amonebln")
+        return
+    client_name = " ".join(context.args)
+    url = "https://script.google.com/macros/s/AKfycbzGVBIT3jAHe8ZlFe4yv-aqpIOjYdUE6wyW4x0wWP1jrG9uE5NVub0wcT8uCAAME759/exec"
+    payload = {"action": "remove", "clientName": client_name}
+    data = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
+    try:
+        response = urllib.request.urlopen(req)
+        result = response.read().decode('utf-8')
+        if "Success" in result:
+            await update.message.reply_text(f"✅ Successfully removed issue for {client_name}.")
+        else:
+            await update.message.reply_text(f"❌ Failed: {result}")
+    except Exception as e:
+        await update.message.reply_text(f"Error removing issue: {e}")
+
+
 
 async def reply(update, context):
     text = update.message.text.lower()
 
     if text.startswith('/'):
         # Ignore actual registered commands so they don't trigger name searches
-        if text.startswith(('/start', '/setgroup', '/testwarning', '/issue', '/alerton')):
+        if text.startswith(('/start', '/setgroup', '/testwarning', '/issue', '/alerton', '/addissue', '/removeissue')):
             return
         # Strip the slash so it can be searched as a name
         text = text[1:]
@@ -650,6 +689,8 @@ app.add_handler(CommandHandler("setgroup", set_group))
 app.add_handler(CommandHandler("testwarning", test_warning))
 app.add_handler(CommandHandler("issue", handle_issue))
 app.add_handler(CommandHandler("alerton", alerton))
+app.add_handler(CommandHandler("addissue", add_issue))
+app.add_handler(CommandHandler("removeissue", remove_issue))
 app.add_handler(MessageHandler(filters.TEXT | filters.COMMAND, reply))
 
 bd_timezone = timezone(timedelta(hours=6))
