@@ -456,9 +456,14 @@ def format_issue_results(results):
                 client_name += f" (+{','.join(other_names)})"
                 
             note = iss.get('Special Notes', '') or 'N/A'
+            note_lower = note.lower().strip()
             
             part += f"👤 <b>Client: {client_name}</b>\n"
-            part += f"📝 <b>Note:</b> {note}\n"
+            
+            if note_lower and note_lower != 'need to check' and note_lower != 'n/a':
+                part += f"🚨 <b>Note: {note}</b> 🚨\n"
+            else:
+                part += f"📝 <b>Note:</b> {note}\n"
             
             if idx < len(issues) - 1:
                 part += "〰️〰️〰️〰️〰️〰️〰️〰️〰️\n"
