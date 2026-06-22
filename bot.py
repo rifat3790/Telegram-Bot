@@ -442,7 +442,7 @@ def format_issue_results(results):
         theme_emoji = THEMES[i % len(THEMES)]
         issues = grouped[emp_name]
         
-        part = f"🧑‍💻 <b>Employee: {emp_name}</b> <i>(Total: {len(issues)})</i>\n"
+        part = f"{theme_emoji} <b>Employee: {emp_name}</b> <i>(Total: {len(issues)})</i>\n"
         part += "<blockquote>"
         
         for idx, iss in enumerate(issues):
@@ -457,7 +457,7 @@ def format_issue_results(results):
                 
             note = iss.get('Special Notes', '') or 'N/A'
             
-            part += f"{theme_emoji} <b>Client: {client_name}</b>\n"
+            part += f"👤 <b>Client: {client_name}</b>\n"
             part += f"📝 <b>Note:</b> {note}\n"
             
             if idx < len(issues) - 1:
