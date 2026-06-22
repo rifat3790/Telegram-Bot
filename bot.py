@@ -11,6 +11,8 @@ import urllib.request
 import io
 import re
 import os
+import json
+import hashlib
 from datetime import time, timezone, timedelta
 
 TOKEN = "8792351236:AAE4VTllcYaaSMVNo4qMfCg_pj49919INsY"
@@ -499,13 +501,117 @@ async def start(update, context):
         "Commands:\n\npayment\nfollowup\ndelivery\nextend"
     )
 
+ALERTS_FILE = "alerts.json"
+NOTIFIED_FILE = "notified_issues.json"
+
+def load_alerts():
+    if os.path.exists(ALERTS_FILE):
+        try:
+            with open(ALERTS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_alerts(data):
+    with open(ALERTS_FILE, 'w') as f:
+        json.dump(data, f)
+
+def load_notified():
+    if os.path.exists(NOTIFIED_FILE):
+        try:
+            with open(NOTIFIED_FILE, 'r') as f:
+                return set(json.load(f))
+        except Exception:
+            return set()
+    return set()
+
+def save_notified(data):
+    with open(NOTIFIED_FILE, 'w') as f:
+        json.dump(list(data), f)
+
+async def alerton(update, context):
+    if not context.args:
+        await update.message.reply_text("Please provide your name exactly as it appears in the sheet. Example: /alerton Refayet")
+        return
+        
+    name = context.args[0]
+    chat_id = update.effective_chat.id
+    
+    alerts = load_alerts()
+    alerts[name.lower()] = chat_id
+    save_alerts(alerts)
+    
+    await update.message.reply_text(f"✅ Success! You will now receive automatic notifications for issues assigned to '{name}/CC'.")
+
+async def check_new_issues(context: ContextTypes.DEFAULT_TYPE):
+    results = get_cc_issues()
+    if not results:
+        return
+        
+    alerts = load_alerts()
+    if not alerts:
+        return
+        
+    notified = load_notified()
+    new_notified = False
+    
+    for r in results:
+        client_name = r.get("Client's Name", '') or 'N/A'
+        profile_name = r.get("Profile Name", '') or 'N/A'
+        note = r.get('Special Notes', '') or 'N/A'
+        link = r.get('Conversation Page URL', '') or '#'
+        
+        # Create a unique hash for the issue
+        issue_str = f"{client_name}|{profile_name}".encode('utf-8')
+        issue_hash = hashlib.md5(issue_str).hexdigest()
+        
+        if issue_hash in notified:
+            continue
+            
+        assign_raw = r.get('Assign Name', '')
+        emp_names_str = assign_raw.replace('/CC', '').replace('/cc', '').strip()
+        names = [n.strip() for n in emp_names_str.split('/') if n.strip()]
+        
+        for emp_name in names:
+            emp_lower = emp_name.lower()
+            if emp_lower in alerts:
+                chat_id = alerts[emp_lower]
+                
+                other_names = [n for n in names if n.lower() != emp_lower]
+                client_display = client_name
+                if other_names:
+                    client_display += f" (+{','.join(other_names)})"
+                    
+                note_lower = note.lower().strip()
+                if note_lower and note_lower != 'need to check' and note_lower != 'n/a':
+                    note_display = f"🚨 <b>Note: {note}</b> 🚨"
+                else:
+                    note_display = f"📝 <b>Note:</b> {note}"
+                
+                msg = f"🚨 <b>New Issue Assigned to You!</b> 🚨\n\n"
+                msg += f"👤 <b>Client: {client_display}</b>\n"
+                msg += f"{note_display}\n"
+                msg += f"🔗 <b>Link:</b> <a href='{link}'>Click Here</a>"
+                
+                try:
+                    await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode='HTML', disable_web_page_preview=True)
+                except Exception as e:
+                    print(f"Failed to send alert to {emp_name}: {e}")
+        
+        notified.add(issue_hash)
+        new_notified = True
+        
+    if new_notified:
+        save_notified(notified)
+
 
 async def reply(update, context):
     text = update.message.text.lower()
 
     if text.startswith('/'):
         # Ignore actual registered commands so they don't trigger name searches
-        if text.startswith(('/start', '/setgroup', '/testwarning', '/issue')):
+        if text.startswith(('/start', '/setgroup', '/testwarning', '/issue', '/alerton')):
             return
         # Strip the slash so it can be searched as a name
         text = text[1:]
@@ -544,12 +650,16 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("setgroup", set_group))
 app.add_handler(CommandHandler("testwarning", test_warning))
 app.add_handler(CommandHandler("issue", handle_issue))
+app.add_handler(CommandHandler("alerton", alerton))
 app.add_handler(MessageHandler(filters.TEXT | filters.COMMAND, reply))
 
 bd_timezone = timezone(timedelta(hours=6))
 target_time = time(hour=8, minute=0, tzinfo=bd_timezone)
 
 app.job_queue.run_daily(daily_warning_job, time=target_time)
+
+# Run issue checker every 60 seconds
+app.job_queue.run_repeating(check_new_issues, interval=60, first=10)
 
 print("Bot Running...")
 app.run_polling()
