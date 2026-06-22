@@ -375,7 +375,7 @@ def format_project_results(name, results):
         client_name = r.get('Client Name', '') or 'N/A'
         assign_team = r.get('Assign Team', '')
         names = [n.strip() for n in assign_team.split('/') if n.strip()]
-        other_names = [n for n in names if n.lower() != name.lower()]
+        other_names = [n for n in names if n.lower() != name.lower() and n.lower() not in ['cc', 'cm']]
         if other_names:
             client_name += f" (Shared with {', '.join(other_names)})"
             
@@ -453,7 +453,7 @@ def format_issue_results(results):
             
             assign_raw = iss.get('Assign Name', '')
             orig_names = [n.strip() for n in assign_raw.replace('/CC', '').replace('/cc', '').strip().split('/') if n.strip()]
-            other_names = [n for n in orig_names if n.lower() != emp_name.lower()]
+            other_names = [n for n in orig_names if n.lower() != emp_name.lower() and n.lower() not in ['cc', 'cm']]
             if other_names:
                 client_name += f" (+{','.join(other_names)})"
                 
@@ -576,7 +576,7 @@ async def check_new_issues(context: ContextTypes.DEFAULT_TYPE):
             if emp_lower in alerts:
                 chat_id = alerts[emp_lower]
                 
-                other_names = [n for n in names if n.lower() != emp_lower]
+                other_names = [n for n in names if n.lower() != emp_lower and n.lower() not in ['cc', 'cm']]
                 client_display = client_name
                 if other_names:
                     client_display += f" (+{','.join(other_names)})"
