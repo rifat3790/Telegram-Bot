@@ -464,8 +464,6 @@ def format_issue_results(results):
             
             if note_lower and note_lower != 'need to check' and note_lower != 'n/a':
                 part += f"🚨 <b>Note: {note}</b> 🚨\n"
-            else:
-                part += f"📝 <b>Note:</b> {note}\n"
             
             if idx < len(issues) - 1:
                 part += "〰️〰️〰️〰️〰️〰️〰️〰️〰️\n"
@@ -585,13 +583,14 @@ async def check_new_issues(context: ContextTypes.DEFAULT_TYPE):
                     
                 note_lower = note.lower().strip()
                 if note_lower and note_lower != 'need to check' and note_lower != 'n/a':
-                    note_display = f"🚨 <b>Note: {note}</b> 🚨"
+                    note_display = f"🚨 <b>Note: {note}</b> 🚨\n"
                 else:
-                    note_display = f"📝 <b>Note:</b> {note}"
+                    note_display = ""
                 
                 msg = f"🚨 <b>New Issue Assigned to You!</b> 🚨\n\n"
                 msg += f"👤 <b>Client: {client_display}</b>\n"
-                msg += f"{note_display}\n"
+                if note_display:
+                    msg += f"{note_display}"
                 msg += f"🔗 <b>Link:</b> <a href='{link}'>Click Here</a>"
                 
                 try:
