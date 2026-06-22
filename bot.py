@@ -606,41 +606,51 @@ async def check_new_issues(context: ContextTypes.DEFAULT_TYPE):
 
 async def add_issue(update, context):
     if not context.args:
-        await update.message.reply_text("Please provide the client name. Example: /addissue amonebln")
+        await update.message.reply_text("Please provide at least one client name. Example: /addissue client1 client2")
         return
-    client_name = " ".join(context.args)
+        
     url = "https://script.google.com/macros/s/AKfycbzGVBIT3jAHe8ZlFe4yv-aqpIOjYdUE6wyW4x0wWP1jrG9uE5NVub0wcT8uCAAME759/exec"
-    payload = {"action": "add", "clientName": client_name}
-    data = json.dumps(payload).encode('utf-8')
-    req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
-    try:
-        response = urllib.request.urlopen(req)
-        result = response.read().decode('utf-8')
-        if "Success" in result:
-            await update.message.reply_text(f"✅ Successfully added issue for {client_name}.")
-        else:
-            await update.message.reply_text(f"❌ Failed: {result}")
-    except Exception as e:
-        await update.message.reply_text(f"Error adding issue: {e}")
+    results_msg = []
+    
+    for client_name in context.args:
+        payload = {"action": "add", "clientName": client_name}
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
+        try:
+            response = urllib.request.urlopen(req)
+            result = response.read().decode('utf-8')
+            if "Success" in result:
+                results_msg.append(f"✅ Successfully added issue for {client_name}.")
+            else:
+                results_msg.append(f"❌ Failed to add {client_name}: {result}")
+        except Exception as e:
+            results_msg.append(f"❌ Error adding {client_name}: {e}")
+            
+    await update.message.reply_text("\n".join(results_msg))
 
 async def remove_issue(update, context):
     if not context.args:
-        await update.message.reply_text("Please provide the client name to remove. Example: /removeissue amonebln")
+        await update.message.reply_text("Please provide at least one client name to remove. Example: /removeissue client1 client2")
         return
-    client_name = " ".join(context.args)
+        
     url = "https://script.google.com/macros/s/AKfycbzGVBIT3jAHe8ZlFe4yv-aqpIOjYdUE6wyW4x0wWP1jrG9uE5NVub0wcT8uCAAME759/exec"
-    payload = {"action": "remove", "clientName": client_name}
-    data = json.dumps(payload).encode('utf-8')
-    req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
-    try:
-        response = urllib.request.urlopen(req)
-        result = response.read().decode('utf-8')
-        if "Success" in result:
-            await update.message.reply_text(f"✅ Successfully removed issue for {client_name}.")
-        else:
-            await update.message.reply_text(f"❌ Failed: {result}")
-    except Exception as e:
-        await update.message.reply_text(f"Error removing issue: {e}")
+    results_msg = []
+    
+    for client_name in context.args:
+        payload = {"action": "remove", "clientName": client_name}
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'})
+        try:
+            response = urllib.request.urlopen(req)
+            result = response.read().decode('utf-8')
+            if "Success" in result:
+                results_msg.append(f"✅ Successfully removed issue for {client_name}.")
+            else:
+                results_msg.append(f"❌ Failed to remove {client_name}: {result}")
+        except Exception as e:
+            results_msg.append(f"❌ Error removing {client_name}: {e}")
+            
+    await update.message.reply_text("\n".join(results_msg))
 
 
 
