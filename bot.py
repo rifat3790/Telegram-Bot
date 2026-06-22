@@ -420,53 +420,84 @@ def format_issue_results(results):
         return ["No issues found with /CC in Assign Name."]
     
     from collections import defaultdict
+    import textwrap
+    
     grouped = defaultdict(list)
     for r in results:
         assign_raw = r.get('Assign Name', '')
-        # Extract employee name by removing /CC
         emp_names_str = assign_raw.replace('/CC', '').replace('/cc', '').strip()
-        if not emp_names_str:
-            grouped["Unknown"].append(r)
-            continue
-            
-        # Split by '/' in case of multiple names
         names = [n.strip() for n in emp_names_str.split('/') if n.strip()]
         for emp_name in names:
             grouped[emp_name].append(r)
+            
+    employees = sorted(list(grouped.keys()))
+    if not employees:
+        return ["No issues found."]
         
     msg_chunks = []
-    current_chunk = "🔴 <b>Pending /CC Issues</b> 🔴\n\n"
+    current_chunk = "🔴 <b>Pending /CC Issues</b> 🔴\n\n<pre>"
     
-    for emp_name, issues in grouped.items():
-        part = f"🧑‍💻 <b>Employee Name: {emp_name}</b>\n"
-        part += f"🔹 <i>Total Issues: {len(issues)}</i>\n\n"
+    COL_WIDTH = 22
+    COLS_PER_TABLE = 3
+    
+    for i in range(0, len(employees), COLS_PER_TABLE):
+        chunk_emps = employees[i:i+COLS_PER_TABLE]
         
-        for r in issues:
-            client_key = "Client's Name"
-            client_name = r.get(client_key, '') or 'N/A'
-            assign_raw = r.get('Assign Name', '')
-            emp_names_str = assign_raw.replace('/CC', '').replace('/cc', '').strip()
-            names = [n.strip() for n in emp_names_str.split('/') if n.strip()]
-            other_names = [n for n in names if n.lower() != emp_name.lower()]
-            if other_names:
-                client_name += f" (Shared with {', '.join(other_names)})"
+        # Build headers
+        header_row = ""
+        for emp in chunk_emps:
+            header_row += emp.center(COL_WIDTH) + "|"
+        part = header_row + "\n"
+        part += "-" * len(header_row) + "\n"
+        
+        max_issues = max(len(grouped[e]) for e in chunk_emps)
+        
+        for j in range(max_issues):
+            col_lines = []
+            for e in chunk_emps:
+                issues = grouped[e]
+                if j < len(issues):
+                    iss = issues[j]
+                    client_key = "Client's Name"
+                    client_name = iss.get(client_key, '') or 'N/A'
+                    
+                    assign_raw = iss.get('Assign Name', '')
+                    orig_names = [n.strip() for n in assign_raw.replace('/CC', '').replace('/cc', '').strip().split('/') if n.strip()]
+                    other_names = [n for n in orig_names if n.lower() != e.lower()]
+                    if other_names:
+                        client_name += f" (+{','.join(other_names)})"
+                        
+                    note = iss.get('Special Notes', '') or 'N/A'
+                    
+                    c_text = textwrap.wrap(f"C: {client_name}", width=COL_WIDTH-1)
+                    n_text = textwrap.wrap(f"N: {note}", width=COL_WIDTH-1)
+                    col_lines.append(c_text + n_text)
+                else:
+                    col_lines.append([])
+                    
+            max_lines = max(len(lines) for lines in col_lines) if col_lines else 0
+            
+            for k in range(max_lines):
+                for col_idx, e in enumerate(chunk_emps):
+                    lines = col_lines[col_idx]
+                    l = lines[k] if k < len(lines) else ""
+                    part += l.ljust(COL_WIDTH) + "|"
+                part += "\n"
                 
-            part += f"  👤 Client: {client_name}\n"
-            part += f"  📁 Profile: {r.get('Profile Name', '') or 'N/A'}\n"
-            part += f"  ⚠️ Note: {r.get('Special Notes', '') or 'N/A'}\n"
-            part += f"  📊 Status: {r.get('Status', '') or 'N/A'}\n"
-            part += f"  🔗 Link: {r.get('Conversation Page URL', '') or 'N/A'}\n"
-            part += "  -------------------------------------\n"
+            part += "-" * len(header_row) + "\n"
             
         part += "\n"
         
-        if len(current_chunk) + len(part) > 4000:
+        if len(current_chunk) + len(part) > 3500:
+            current_chunk += "</pre>"
             msg_chunks.append(current_chunk)
-            current_chunk = part
+            current_chunk = "<pre>\n" + part
         else:
             current_chunk += part
             
     if current_chunk:
+        if not current_chunk.endswith("</pre>"):
+            current_chunk += "</pre>"
         msg_chunks.append(current_chunk)
         
     return msg_chunks
